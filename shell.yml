@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: Pod
+metadata:
+ name: shell
+spec:
+  containers:
+  - name: shell
+    image: allenluce/shell:latest
+    securityContext:
+       privileged: true
