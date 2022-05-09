@@ -1,6 +1,32 @@
+# Prepare aws-cli
+FROM python:3.9.12-alpine3.15 as aws-cli-builder
+ENV AWS_CLI_VERSION=2.6.3
+
+RUN set -ex; \
+    apk add --no-cache \
+    git unzip groff \
+    build-base libffi-dev cmake
+
+RUN set -eux; \
+    mkdir /aws; \
+    git clone --single-branch --depth 1 -b ${AWS_CLI_VERSION} https://github.com/aws/aws-cli.git /aws; \
+    cd /aws; \
+    sed -i'' 's/PyInstaller.*/PyInstaller==4.10/g' requirements-build.txt; \
+    python -m venv venv; \
+    . venv/bin/activate; \
+    ./scripts/installers/make-exe
+
+RUN set -ex; \
+    unzip /aws/dist/awscli-exe.zip; \
+    ./aws/install --bin-dir /aws-cli-bin; \
+    /aws-cli-bin/aws --version
+
+# Prepare the main image
 FROM alpine:3.15
 
-ARG USER
+# Install aws-cli from the builder
+COPY --from=aws-cli-builder /usr/local/aws-cli/ /usr/local/aws-cli/
+COPY --from=aws-cli-builder /aws-cli-bin/ /usr/local/bin/
 
 # Install dumb-init
 RUN \
@@ -10,24 +36,36 @@ RUN \
   rm -rf /var/cache/apk/* && :
 
 # Install various packages
-RUN apk add --no-cache git curl zsh emacs-nox ripgrep zerotier-one openssh sudo go tcpdump strace
-RUN sudo sed --in-place 's/^#\s*\(%wheel\s\+ALL=(ALL)\s\+NOPASSWD:\s\+ALL\)/\1/' /etc/sudoers
+RUN apk add --no-cache git curl zsh emacs-nox ripgrep zerotier-one \
+    openssh sudo go tcpdump strace tmux
+
+# Install kubectl
+RUN curl -LO https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/linux/amd64/kubectl
+RUN chmod a+x kubectl
+RUN mv ./kubectl /usr/local/bin/kubectl
+
+# Add local user (and grant it sudo access)
+ARG USER
+RUN sed --in-place 's/^#\s*\(%wheel\s\+ALL=(ALL)\s\+NOPASSWD:\s\+ALL\)/\1/' /etc/sudoers
 RUN adduser -G wheel -s /bin/zsh -D ${USER}
 RUN passwd -u ${USER}
 
-# Install stuff for the user
+# Install user's local stuff
 WORKDIR /home/${USER}
 
-# SSH auth stuff
-RUN mkdir .ssh && chown ${USER} .ssh
-COPY --chown=${USER} .ssh .ssh
-RUN chmod 700 .ssh && chmod 600 .ssh/*
+# Generate host keys for sshd
 RUN ssh-keygen -A
 
 # NVM dependencies
 RUN apk add -U curl bash ca-certificates openssl ncurses coreutils python2 make gcc g++ libgcc linux-headers grep util-linux binutils findutils
 
 USER ${USER}
+
+# SSH auth stuff
+ARG AUTH_KEYS
+RUN mkdir -m 700 .ssh
+RUN echo ${AUTH_KEYS} | base64 -d > .ssh/authorized_keys
+RUN chmod 600 .ssh/authorized_keys
 
 # Set up Oh-my-zsh
 RUN sh -c "$(curl -fsSL https://raw.github.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"

@@ -1,5 +1,11 @@
 # A Kubernetes development pod
 
+This pod provides an environment that closely resembles the running
+environment of the average (i.e. Alpine Linux based) Kubernetes pod.
+It can be used when to track down errors that evade reproduction in a
+local (non-cluster) development environment.
+
+It includes an Emacs-based development environment and several handy tools:
 A handy Docker image for running a usable interactive terminal-based
 development envrionment on Kubernetes clusters. Includes tools I find
 handy for development:
@@ -9,9 +15,10 @@ handy for development:
 - Emacs (with [Prelude](https://github.com/bbatsov/prelude))
 - ZSH (with [Oh My Zsh](https://ohmyz.sh/))
 - [Ripgrep](https://github.com/BurntSushi/ripgrep)
-- ZeroTier
+- [ZeroTier](https://zerotier.com/)
+- Git, cURL, OpenSSH, sudo, tcpdump, strace, tmux
 
-And adds my custom-tailored .zshrc based on the Bullet Train theme.
+And adds a custom-tailored .zshrc based on the [Bullet Train](https://github.com/caiogondim/bullet-train.zsh) theme.
 
 # Using via Docker
 
@@ -23,8 +30,9 @@ And adds my custom-tailored .zshrc based on the Bullet Train theme.
 
     docker exec --privileged --detach-keys="ctrl-o,ctrl-o" -it shell zsh
 
-By default, the user's name is "allen." You can set your own username
-by building your own version. See the instructions below.
+By default, the container's non-root user's name is "allen." You can
+set your own username by creating a new Docker image. See the
+instructions below.
 
 ## Kill the container
 
@@ -34,10 +42,10 @@ The image will clean itself up because of the --rm supplied above.
 
 ## Quick one-off shell
 
-Alternatively, start and attach in a single command (container will
-exit when the shell exits):
+Alternatively, start and attach in a single command (the container
+will exit when the shell exits):
 
-    docker run -it --rm shell zsh
+    docker run --privileged -it --rm allenluce/shell zsh
 
 # Creating a new Docker image
 
@@ -47,7 +55,11 @@ Docker Hub login in the following commands.
 
 ## Building the image
 
-    docker build --build-arg USER=allen -t allenluce/shell .
+Choose a username for yourself (I'm using `allen` here). Your existing
+`~/.ssh/authorized_keys` file is passed to seed the `authorized_keys`
+file for the new user in the container.
+
+    docker build --build-arg AUTH_KEYS="$(base64 ~/.ssh/authorized_keys)" --build-arg USER=allen -t allenluce/shell .
 
 ## Pushing the newly built image to Docker hub
 
