@@ -72,7 +72,7 @@ k8s clusters.
 
 # Starting the container in Kubernetes
 
-    apply -f shell.yml
+    kubectl apply -f shell.yml
 
 # Attaching to the running pod
 
