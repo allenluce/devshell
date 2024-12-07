@@ -15,7 +15,6 @@ handy for development:
 - Emacs (with [Prelude](https://github.com/bbatsov/prelude))
 - ZSH (with [Oh My Zsh](https://ohmyz.sh/))
 - [Ripgrep](https://github.com/BurntSushi/ripgrep)
-- [ZeroTier](https://zerotier.com/)
 - Git, cURL, OpenSSH, sudo, tcpdump, strace, tmux
 
 And adds a custom-tailored .zshrc based on the [Bullet Train](https://github.com/caiogondim/bullet-train.zsh) theme.
@@ -59,7 +58,7 @@ Choose a username for yourself (I'm using `allen` here). Your existing
 `~/.ssh/authorized_keys` file is passed to seed the `authorized_keys`
 file for the new user in the container.
 
-    docker build --build-arg AUTH_KEYS="$(base64 ~/.ssh/authorized_keys)" --build-arg USER=allen -t allenluce/shell .
+    docker buildx build --build-arg AUTH_KEYS="$(base64 -i ~/.ssh/authorized_keys)" --build-arg USER=allen -t allenluce/shell .
 
 ## Pushing the newly built image to Docker hub
 
@@ -82,26 +81,11 @@ k8s clusters.
 
     kubectl delete pod shell
 
-# ZeroTier networking
-
-To join a network:
-
-    sudo zerotier-cli join <NETWORK-ID>
-
 # IPv6
 
 IPV6 may not work on the container by default. To get it going, try this:
 
     sysctl net.ipv6.conf.all.disable_ipv6=0
-
-If you do this after joining a network, you may have to leave and
-rejoin the network in order for the interface to get an address:
-
-    sudo zerotier-cli leave <NETWORK-ID>
-    sudo zerotier-cli join <NETWORK-ID>
-
-Note that the container runs in a privileged security context in order
-to allow ZeroTier access to the TAP/TUN device.
 
 # SSH keys
 

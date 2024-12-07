@@ -1,13 +1,70 @@
 #
-# Executes commands at the start of an interactive session.
-#
-# Authors:
-#   Sorin Ionescu <sorin.ionescu@gmail.com>
+# Custom ZSHRC with Allen Luce's opinionated preferences.
 #
 
-# Source Prezto.
 if [[ -s "${ZDOTDIR:-$HOME}/.zprezto/init.zsh" ]]; then
   source "${ZDOTDIR:-$HOME}/.zprezto/init.zsh"
 fi
 
-# Customize to your needs...
+# To customize prompt, run `p10k configure` or edit ~/.p10k.zsh.
+[[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
+POWERLEVEL9K_DISABLE_GITSTATUS=true
+typeset -g POWERLEVEL9K_VCS_DISABLED_DIR_PATTERN='/Users/aluce(|/*)'
+
+typeset -g POWERLEVEL9K_TIME_BACKGROUND=1
+typeset -g POWERLEVEL9K_TIME_FOREGROUND=black
+typeset -g POWERLEVEL9K_DIR_BACKGROUND=1
+typeset -g POWERLEVEL9K_CONTEXT_BACKGROUND=1
+typeset -g POWERLEVEL9K_CONTEXT_{REMOTE,REMOTE_SUDO}_FOREGROUND=white
+typeset -g POWERLEVEL9K_INSTANT_PROMPT=verbose
+# https://misc.flogisoft.com/bash/tip_colors_and_formatting
+
+export EDITOR="emacsclient -t"
+export VISUAL="emacsclient -t"
+export HISTSIZE=1000000
+export SAVEHIST=1000000
+export HIST=1000000
+export HISTFILE=~/.zsh_history
+export LESS="-i -n -X -R"
+export PAGER=less
+setopt AUTOMENU AUTO_CD AUTO_REMOVE_SLASH AUTO_RESUME EXTENDED_GLOB
+setopt EXTENDED_HISTORY HIST_IGNORE_DUPS LIST_TYPES MARKDIRS
+setopt MENU_COMPLETE PUSHD_IGNORE_DUPS AUTO_PUSHD
+setopt APPEND_HISTORY INC_APPEND_HISTORY
+unsetopt HIST_VERIFY
+bindkey '^ ' set-mark-command
+
+alias ta="tmux attach"
+
+ec() {
+  command emacsclient --eval '(setenv "SSH_AUTH_SOCK" "'$SSH_AUTH_SOCK'")'
+  command emacsclient -t $@
+}
+
+# Support local .ripgreprc files.
+rg () {
+  if [ -f .ripgreprc ]; then
+    export RIPGREP_CONFIG_PATH=`pwd`/.ripgreprc
+  fi
+  command rg $*
+}
+
+#
+# Trim output to width of the screen.
+#
+trim () {
+  COLS=$(stty -f /dev/tty size | cut -d' ' -f2)
+  cut -c -$COLS
+}
+
+CORRECT_IGNORE='(ls|lex)'
+
+alias -g latest='*(om[1])'
+
+winch () {
+  export lines=$(stty size | awk '{print $1}')
+  export cols=$(stty size | awk '{print $NF}')
+}
+
+winch
+trap winch WINCH
