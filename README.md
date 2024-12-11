@@ -1,33 +1,58 @@
-# A Kubernetes development pod
+# A Kubernetes utility pod for developers
 
-This pod provides an environment that closely resembles the running
-environment of the average (i.e. Alpine Linux based) Kubernetes pod.
-It can be used when to track down errors that evade reproduction in a
-local (non-cluster) development environment.
+This pod provides an environment that resembles the running
+environment of the average ([Oracle Linux
+8](https://docs.oracle.com/en/operating-systems/oracle-linux/8/)-based)
+Kubernetes pod.  It can be used when to track down errors that evade
+reproduction in a local (non-cluster) development environment.
 
-It includes an Emacs-based development environment and several handy tools:
-A handy Docker image for running a usable interactive terminal-based
-development envrionment on Kubernetes clusters. Includes tools I find
-handy for development:
+It includes several handy tools:
 
-- NodeJS (with [NVM](https://github.com/nvm-sh/nvm))
-- Go
 - Emacs (with [Prelude](https://github.com/bbatsov/prelude))
-- ZSH (with [Oh My Zsh](https://ohmyz.sh/))
+- ZSH (with [Prezto](https://github.com/sorin-ionescu/prezto))
 - [Ripgrep](https://github.com/BurntSushi/ripgrep)
-- Git, cURL, OpenSSH, sudo, tcpdump, strace, tmux
+- Git, cURL, OpenSSH, sudo, tcpdump, strace, tmux, mlocate, man pages, etc.
 
-And adds a custom-tailored .zshrc based on the [Bullet Train](https://github.com/caiogondim/bullet-train.zsh) theme.
+As well as a custom-tailored .zshrc based on
+[Powerlevel10k](https://github.com/romkatv/powerlevel10k).
 
-# Using via Docker
+# Running in Kubernetes
 
-## Start up in the background
+A yaml file is provided that contains a definition suitable for most
+k8s clusters.
 
-    docker run --rm -d -h shell --name shell allenluce/shell
+## Starting a debug pod in Kubernetes
+
+It's recommended to start it as a debug pod. This gives it the ability
+to see and manage node processes and the node's filename (via
+`/host`). You can start one persistent debug pod per node with:
+
+    for node_name in $(kubectl get nodes -o name); do
+      kubectl debug ${node_name} --image=allenluce/oci-shell
+    done
+
+## Viewing the list of running debuggers
+
+    kubectl get pod -o jsonpath='{range .items[?(@.spec.containers[*].image=="allenluce/oci-shell")]}{.metadata.name}{"\n"}{end}' --field-selector=status.phase=Running
+
+## Attaching to a running debug pod
+
+    POD_NAME=$(kubectl get pod -o jsonpath='{range .items[?(@.spec.containers[*].image=="allenluce/oci-shell")]}{.metadata.name}{"\n"}{end}' --field-selector=status.phase=Running | head -1)
+    kubectl exec -it $POD_NAME -- zsh
+
+## Shutting down and removing the pod
+
+    kubectl delete pod $POD_NAME
+
+# Using locally in Docker
+
+## Start up a persistent container
+
+    docker run --rm -d -h oci-shell --name oci-shell allenluce/oci-shell
 
 ## Attach to the running container
 
-    docker exec --privileged --detach-keys="ctrl-o,ctrl-o" -it shell zsh
+    docker exec --privileged --detach-keys="ctrl-o,ctrl-o" -it oci-shell zsh
 
 By default, the container's non-root user's name is "allen." You can
 set your own username by creating a new Docker image. See the
@@ -35,16 +60,16 @@ instructions below.
 
 ## Kill the container
 
-    docker kill shell
+    docker kill oci-shell
 
 The image will clean itself up because of the --rm supplied above.
 
-## Quick one-off shell
+## One-time quick shell
 
 Alternatively, start and attach in a single command (the container
 will exit when the shell exits):
 
-    docker run --privileged -it --rm allenluce/shell zsh
+    docker run --privileged -it --rm allenluce/oci-shell zsh
 
 # Creating a new Docker image
 
@@ -58,38 +83,9 @@ Choose a username for yourself (I'm using `allen` here). Your existing
 `~/.ssh/authorized_keys` file is passed to seed the `authorized_keys`
 file for the new user in the container.
 
-    docker buildx build --build-arg AUTH_KEYS="$(base64 -i ~/.ssh/authorized_keys)" --build-arg USER=allen -t allenluce/shell .
+    docker buildx build --build-arg AUTH_KEYS="$(base64 -i ~/.ssh/authorized_keys)" --build-arg USER=allen -t allenluce/oci-shell .
 
 ## Pushing the newly built image to Docker hub
 
-    docker push allenluce/shell
+    docker push allenluce/oci-shell
 
-# Running in Kubernetes
-
-A yaml file is provided that contains a definition suitable for most
-k8s clusters.
-
-# Starting the container in Kubernetes
-
-    kubectl apply -f shell.yml
-
-# Attaching to the running pod
-
-    kubectl exec -it shell -- zsh
-
-# Shutting down and removing the pod
-
-    kubectl delete pod shell
-
-# IPv6
-
-IPV6 may not work on the container by default. To get it going, try this:
-
-    sysctl net.ipv6.conf.all.disable_ipv6=0
-
-# SSH keys
-
-A set of SSH public keys (my personal ones) are located in
-`.ssh/authorized_keys`. If you want to be able to SSH into your pod
-(either via ZeroTier or pod networking), be sure to add your own keys
-to that file.

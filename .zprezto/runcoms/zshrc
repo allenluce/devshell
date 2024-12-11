@@ -68,3 +68,5 @@ winch () {
 
 winch
 trap winch WINCH
+
+export PATH=$PATH:/opt/emacs/bin
